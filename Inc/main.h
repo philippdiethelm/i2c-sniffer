@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f1xx_hal.h"
+#include "stm32l4xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -57,12 +57,22 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define VCP_TX_Pin GPIO_PIN_2
+#define VCP_TX_GPIO_Port GPIOA
 #define SCL_IT_Pin GPIO_PIN_8
-#define SCL_IT_GPIO_Port GPIOB
+#define SCL_IT_GPIO_Port GPIOA
 #define SCL_IT_EXTI_IRQn EXTI9_5_IRQn
 #define SDA_IT_Pin GPIO_PIN_9
-#define SDA_IT_GPIO_Port GPIOB
+#define SDA_IT_GPIO_Port GPIOA
 #define SDA_IT_EXTI_IRQn EXTI9_5_IRQn
+#define SWDIO_Pin GPIO_PIN_13
+#define SWDIO_GPIO_Port GPIOA
+#define SWCLK_Pin GPIO_PIN_14
+#define SWCLK_GPIO_Port GPIOA
+#define VCP_RX_Pin GPIO_PIN_15
+#define VCP_RX_GPIO_Port GPIOA
+#define LD3_Pin GPIO_PIN_3
+#define LD3_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 // Define different constants for SCL, SDA pins in case we need to use separate pins
