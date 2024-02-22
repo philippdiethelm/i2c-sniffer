@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Generate Short SHA name
+      shell: bash
+      id: generate-shortsha
+      run: |
+        echo "SHORT_SHA=`echo ${{ github.sha }} | cut -c 1-8`" >> "$GITHUB_ENV"
+        echo "REF_NAME=`echo ${{ github.ref_name }} | sed 's/\//-/g'`" >> "$GITHUB_ENV"
+
+    - name: Generate artifact name
+      shell: bash
+      id: generate-name
+      run: |
+        echo "Short SHA is: ${{ env.SHORT_SHA }}"
+        echo "REF_NAME is: '${{ env.REF_NAME }}'"
+        echo "artifact=i2c_sniffer.${{ env.REF_NAME }}.${{ env.SHORT_SHA }}" >> "$GITHUB_ENV"
+
+    - name: Display Artifact name
+      id: display-name
+      shell: bash
+      run: |
+        echo "Artifact names are:"
+        echo "1. '${{ env.artifact }}.zip'"
+
+    - run: sudo chown 1000:docker /var/run/docker.sock
+      if: ${{ env.ACT }}
+
+    - uses: actions/checkout@v3
+
+    - name: Fix git safe.directory in container
+      run: mkdir -p /home/runner/work/_temp/_github_home && printf "[safe]\n\tdirectory = /github/workspace" > /home/runner/work/_temp/_github_home/.gitconfig
+
+    - uses: philippdiethelm/action-build-stm32cubeide@v9.1
+      with:
+        project-path: '.'
+        project-target: 'i2c_sniffer'
+
+    - name: Upload Published Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.artifact }}
+        path: |
+          ${{ github.workspace }}/gitid.h
+          ${{ github.workspace }}/Debug/i2c_sniffer.elf
+          ${{ github.workspace }}/Debug/i2c_sniffer.bin
+          ${{ github.workspace }}/Debug/i2c_sniffer.list
+          ${{ github.workspace }}/Release/i2c_sniffer.elf
+          ${{ github.workspace }}/Release/i2c_sniffer.bin
+          ${{ github.workspace }}/Release/i2c_sniffer.list
+

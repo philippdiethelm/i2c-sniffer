@@ -1,0 +1,16 @@
+gitid != git describe --abbrev=8 --dirty --always --tags
+gitid2 != git describe --abbrev=8 --always
+
+gitid.h: FORCE
+	echo "// Warning: Automatically generated file!" > ../gitid.h
+	echo "// DO NOT EDIT or check into git!" >> ../gitid.h
+	@echo "#ifdef __cplusplus" >> ../gitid.h
+	@echo "constexpr char gitid[] = \"$(gitid)\";"  >> ../gitid.h
+	@echo "constexpr unsigned int git_commitid = 0x$(gitid2);"  >> ../gitid.h
+	@echo "#endif" >> ../gitid.h
+	@echo "#define GIT_ID_STR \"$(gitid)\"" >> ../gitid.h
+
+.NOTPARALLEL: gitid.h
+FORCE:
+
+all: gitid.h main-build
