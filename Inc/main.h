@@ -62,9 +62,8 @@ void Error_Handler(void);
 #define SCL_IT_Pin GPIO_PIN_8
 #define SCL_IT_GPIO_Port GPIOA
 #define SCL_IT_EXTI_IRQn EXTI9_5_IRQn
-#define SDA_IT_Pin GPIO_PIN_9
-#define SDA_IT_GPIO_Port GPIOA
-#define SDA_IT_EXTI_IRQn EXTI9_5_IRQn
+#define SDA_Pin GPIO_PIN_9
+#define SDA_GPIO_Port GPIOA
 #define SWDIO_Pin GPIO_PIN_13
 #define SWDIO_GPIO_Port GPIOA
 #define SWCLK_Pin GPIO_PIN_14
@@ -79,8 +78,6 @@ void Error_Handler(void);
 // for interrupts and GPIO access
 #define SCL_Pin       SCL_IT_Pin
 #define SCL_GPIO_Port SCL_IT_GPIO_Port
-#define SDA_Pin       SDA_IT_Pin
-#define SDA_GPIO_Port SDA_IT_GPIO_Port
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

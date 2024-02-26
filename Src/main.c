@@ -42,6 +42,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -52,6 +54,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
 /* With GCC, small printf (option LD Linker->Libraries->Small printf
@@ -96,6 +99,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   char ch = 'a';
@@ -133,13 +137,25 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+#define BUFFER_SCL_EVENT_bm 0x80
+#define BUFFER_SDA_EVENT_bm 0x40
+#define BUFFER_SDA_PIN_bm 0x01
+#define BUFFER_SCL_PIN_bm 0x02
+
+  HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2);
+
+
   while (1)
   {
 	  if ((bufferPos - bufferStart + I2C_BUFFER_SIZE) % I2C_BUFFER_SIZE >= 1) { // positive modulo - distance left to cover
-		  if (buffer[bufferStart] == 'A') {
+		  uint8_t buffer_val = buffer[bufferStart];
+		  bufferStart = (bufferStart + 1) % I2C_BUFFER_SIZE;
+
+		  if ((buffer_val & BUFFER_SDA_EVENT_bm) && !(buffer_val & BUFFER_SDA_PIN_bm) && (buffer_val & BUFFER_SCL_PIN_bm)) {
+
 			  // Start condition!!!
-			  printf("\e[32m[\e[39m");
-			  bufferStart = (bufferStart + 1) % I2C_BUFFER_SIZE;
+			  printf("\e[32m" "[" "\e[39m");
 
 			  if (dataLeft > 0 && dataLeft < 8) {
 				  printf("ERROR! Not enough dat %d.\r\n", dataLeft);
@@ -148,17 +164,18 @@ int main(void)
 			  dataLeft = 9;
 			  pendingData = 0;
 			  waitingForRegister = 1;
-		  } else if (buffer[bufferStart] == 'B') {
+		  }
+		  if ((buffer_val & BUFFER_SDA_EVENT_bm) && (buffer_val & BUFFER_SDA_PIN_bm) && (buffer_val & BUFFER_SCL_PIN_bm)) {
 			  // Stop condition!!!
-			  printf("\e[31m]\e[39m\r\n");
-			  bufferStart = (bufferStart + 1) % I2C_BUFFER_SIZE;
+			  printf("\e[31m" "]" "\e[39m\r\n");
 
 			  if (dataLeft > 0 && dataLeft < 8) {
 				  printf("ERROR! Not got enough dat.\r\n");
 				  dataLeft = 0;
 			  }
 			  pendingData = 0;
-		  } else {
+		  }
+		  if (buffer_val & BUFFER_SCL_EVENT_bm){
 			  if (dataLeft <= 0) {
 				  printf("ERROR! Got data without start condition.\r\n");
 			  }
@@ -170,27 +187,24 @@ int main(void)
 
 			  if (dataLeft == 0) {
 				  // Read ACK byte
-				  pendingACK = !buffer[bufferStart];
+				  pendingACK = !(buffer_val & BUFFER_SDA_PIN_bm);
 				  pendingExists = 1;
 			  } else if (dataLeft == 1 && waitingForRegister) {
 				  // Read RW byte
-				  pendingRW = buffer[bufferStart];
+				  pendingRW = (buffer_val & BUFFER_SDA_PIN_bm);
 			  } else {
 				  // Read regular byte
-				  pendingData = pendingData << 1 | buffer[bufferStart];
+				  pendingData = pendingData << 1 | ((buffer_val & BUFFER_SDA_PIN_bm) ? 1 : 0);
 			  }
-
-			  // Increase the circular buffer position
-			  bufferStart = (bufferStart + 1) % I2C_BUFFER_SIZE;
 		  }
 	  }
 
 	  if (pendingExists) {
 		  // Print received data
 		  if (waitingForRegister) {
-			  printf("\e[36m%2x", pendingData);
+			  printf("\e[36m%02x", pendingData);
 		  } else {
-			  printf("\e[39m%2x", pendingData);
+			  printf("\e[39m%02x", pendingData);
 		  }
 		  printf("\e[33m");
 		  if (waitingForRegister) {
@@ -292,6 +306,66 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 0;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 1;
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -351,12 +425,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(SCL_IT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : SDA_IT_Pin */
-  GPIO_InitStruct.Pin = SDA_IT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(SDA_IT_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pin : LD3_Pin */
   GPIO_InitStruct.Pin = LD3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -365,7 +433,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(LD3_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -382,24 +450,44 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	uint8_t datum;
 
-	if (GPIO_Pin == SCL_IT_Pin) {
-		// Clock triggered; bit received
-		datum = HAL_GPIO_ReadPin(SDA_GPIO_Port, SDA_Pin);
-	} else if (HAL_GPIO_ReadPin(SCL_GPIO_Port, SCL_Pin)) { // SDA pin necessarily
-		// START or STOP condition
-		// A for START, B for STOP
-		datum = HAL_GPIO_ReadPin(SDA_IT_GPIO_Port, SDA_IT_Pin) ? 'B' : 'A';
-	} else {
-		// Nothing interesting here...
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	uint8_t datum = 0;
+
+    datum |= HAL_GPIO_ReadPin(SCL_GPIO_Port, SCL_Pin) ? BUFFER_SCL_PIN_bm : 0;
+    datum |= HAL_GPIO_ReadPin(SDA_GPIO_Port, SDA_Pin) ? BUFFER_SDA_PIN_bm : 0;
+
+    if(htim->Channel == 2) {
+    	if(!(datum & BUFFER_SCL_PIN_bm)) {
+    		return;
+    	}
+
+        datum |= htim->Channel == 2 ? BUFFER_SDA_EVENT_bm : 0;
+
+    	buffer[bufferPos] = datum; // Store the received bit in the buffer
+
+    	bufferPos = (bufferPos + 1) % I2C_BUFFER_SIZE;
+
+    	if (bufferPos == bufferStart) printf("ERROR! I2C buffer too small!\r\n"); // Buffer overflow!
+    }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+
+	if(GPIO_Pin != SCL_IT_Pin)
 		return;
-	}
+
+    uint8_t datum = 0;
+
+    datum |= HAL_GPIO_ReadPin(SCL_GPIO_Port, SCL_Pin) ? BUFFER_SCL_PIN_bm : 0;
+    datum |= HAL_GPIO_ReadPin(SDA_GPIO_Port, SDA_Pin) ? BUFFER_SDA_PIN_bm : 0;
+    datum |= GPIO_Pin == SCL_IT_Pin ? BUFFER_SCL_EVENT_bm : 0;
 
 	buffer[bufferPos] = datum; // Store the received bit in the buffer
 
 	bufferPos = (bufferPos + 1) % I2C_BUFFER_SIZE;
+
 	if (bufferPos == bufferStart) printf("ERROR! I2C buffer too small!\r\n"); // Buffer overflow!
 }
 /* USER CODE END 4 */

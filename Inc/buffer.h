@@ -14,8 +14,8 @@
 // ******************************************************
 
 #define I2C_BUFFER_SIZE 7000 // size in bytes (1 byte = 1 received I2C bit or START/STOP condition)
-uint8_t buffer[I2C_BUFFER_SIZE];
-uint16_t bufferPos = 0;   // the current writing position inside the buffer
-uint16_t bufferStart = 0; // the current reading position inside the buffer
+volatile uint8_t buffer[I2C_BUFFER_SIZE];
+volatile uint16_t bufferPos = 0;   // the current writing position inside the buffer
+volatile uint16_t bufferStart = 0; // the current reading position inside the buffer
 
 #endif /* BUFFER_H_ */
